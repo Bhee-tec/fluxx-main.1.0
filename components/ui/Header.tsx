@@ -8,7 +8,7 @@ export default function Header({ score }: HeaderProps): React.JSX.Element {
   const balance = score / 1000;
 
   return (
-    <div className="px-2 sm:px-4">
+    <div className="px-2 sm:px-1">
       <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch mt-4 mb-4">
         {/* User Profile Section */}
         <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl px-4 py-3 flex items-center flex-1 min-w-0 group relative overflow-hidden">

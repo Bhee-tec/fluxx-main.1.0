@@ -27,7 +27,7 @@ export default function GameData({
   }
 
   return (
-    <div className="max-w-2xl mx-auto mt-12 mb-6">
+    <div className="max-w-2xl mx-auto mt-3 mb-6">
       <div className="relative group">
         <div className="absolute inset-0 bg-purple-500/30 blur-3xl animate-pulse"></div>
         <div className="relative flex justify-between items-center bg-gradient-to-r from-purple-500 to-pink-500 backdrop-blur-sm rounded-2xl p-6 shadow-2xl border-2 border-purple-300 border-opacity-50 transition-transform duration-300 hover:scale-105 hover:shadow-glow">
