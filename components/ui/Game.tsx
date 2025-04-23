@@ -178,7 +178,7 @@ export default function Game() {
   }, [notifications]);
 
   return (
-    <div className="max-w-md mx-auto mt-6 mb-6 relative">
+    <div className="max-w-md mx-auto mt-6 mb-6 pb-10 relative">
       <Header score={score} />
       <GameData score={score} currentMoves={moves} totalMoves={30} />
       
