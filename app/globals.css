@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+html {
+  touch-action: manipulation;
+}
+
+
+html {
+    touch-action: manipulation;
+    overflow: hidden;
+  }
+  body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
