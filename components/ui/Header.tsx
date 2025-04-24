@@ -1,50 +1,64 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { WebApp } from '@twa-dev/types'
 
-interface UserData {
-  firstName: string;
-  points: number;
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp: WebApp
+    }
+  }
 }
 
 export default function Header(): React.JSX.Element {
-  const [user, setUser] = useState<UserData | null>(null);
+  const [user, setUser] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [notification, setNotification] = useState('')
 
   useEffect(() => {
-    const initTelegramUser = async () => {
-      // @ts-ignore
-      const tgUser = window?.Telegram?.WebApp?.initDataUnsafe?.user;
-      if (!tgUser) return;
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp
+      tg.ready()
 
-      const payload = {
-        telegramId: tgUser.id,
-        username: tgUser.username,
-        firstName: tgUser.first_name,
-        lastName: tgUser.last_name,
-      };
+      const initData = tg.initData || ''
+      const initDataUnsafe = tg.initDataUnsafe || {}
 
-      try {
-        const res = await fetch(`/api/user?telegramId=${tgUser.id}`);
-        if (res.status === 404) {
-          await fetch('/api/user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-        }
-
-        const updated = await fetch(`/api/user?telegramId=${tgUser.id}`);
-        const data = await updated.json();
-        setUser({ firstName: data.username ?? 'gamemaster', points: data.points });
-      } catch (err) {
-        console.error('Error fetching or creating user:', err);
+      if (initDataUnsafe.user) {
+        fetch('/api/user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(initDataUnsafe.user),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              setError(data.error)
+            } else {
+              setUser(data)
+            }
+          })
+          .catch((err) => {
+            setError('Failed to fetch user data')
+          })
+      } else {
+        setError('No user data available')
       }
-    };
+    } else {
+      setError('This app should be opened in Telegram')
+    }
+  }, [])
 
-    initTelegramUser();
-  }, []);
 
   const balance = (user?.points ?? 0) / 1000;
+
+  if (error) {
+    return <div className="container mx-auto p-4 text-red-500">{error}</div>
+  }
+
+  if (!user) return <div className="container mx-auto p-4">Loading...</div>
 
   return (
     <div className="px-2 sm:px-1">
@@ -67,7 +81,7 @@ export default function Header(): React.JSX.Element {
             <span className="text-2xl animate-bounce flex-shrink-0">⚡</span>
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-white text-sm md:text-base truncate">
-                {user?.firstName || 'gamemaster'}
+              {user.firstName}
               </span>
               <span className="font-bold text-yellow-300 text-sm md:text-base flex items-center truncate">
                 <span className="mr-1">🪙</span>
