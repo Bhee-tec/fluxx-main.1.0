@@ -1,29 +1,27 @@
-// GameData.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
 
-export default function GameData() {
-  const [gameData, setGameData] = useState<{ score: number; moves: number } | null>(null);
+interface GameDataProps {
+  score: number;
+  currentMoves: number;
+  totalMoves: number;
+}
+
+export default function GameData({ score, currentMoves, totalMoves }: GameDataProps) {
   const [error, setError] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
-  const telegramId = 12345; // Replace with actual user context or auth
-  const totalMoves = 30;
   const POLLING_INTERVAL = 5000;
 
   const fetchGameData = async () => {
     try {
-      const response = await fetch(`/api/game-state?telegramId=${telegramId}`);
+      const response = await fetch(`/api/game-state?telegramId=12345`); // Replace with actual telegramId
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Failed to fetch game data');
       }
       const { score, moves } = await response.json();
-      setGameData((prev) => {
-        if (prev && prev.score === score && prev.moves === moves) return prev;
-        return { score: score || 0, moves: moves || 30 };
-      });
+      // Handle game state update (Not needed here, as props are now passed directly)
     } catch (err) {
       setError('Error loading game data');
       console.error(err);
@@ -34,22 +32,18 @@ export default function GameData() {
     fetchGameData();
     const interval = setInterval(fetchGameData, POLLING_INTERVAL);
     return () => clearInterval(interval);
-  }, [telegramId]);
+  }, []);
 
   useEffect(() => {
-    if (gameData) {
+    if (score || currentMoves) {
       setIsAnimating(true);
       const timer = setTimeout(() => setIsAnimating(false), 500);
       return () => clearTimeout(timer);
     }
-  }, [gameData?.score, gameData?.moves]);
+  }, [score, currentMoves]);
 
   if (error) {
     return <div className="container mx-auto p-4 text-red-500">{error}</div>;
-  }
-
-  if (!gameData) {
-    return <div className="container mx-auto p-4 text-gray-400">Loading...</div>;
   }
 
   return (
@@ -65,11 +59,9 @@ export default function GameData() {
           <div className="text-center z-10">
             <div className="text-sm text-purple-100 font-semibold mb-1">SCORE</div>
             <div
-              className={`text-3xl font-bold bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-transparent ${
-                isAnimating ? 'animate-pulse' : ''
-              }`}
+              className={`text-3xl font-bold bg-gradient-to-r from-yellow-300 to-pink-300 bg-clip-text text-transparent ${isAnimating ? 'animate-pulse' : ''}`}
             >
-              {gameData.score.toLocaleString()}
+              {score.toLocaleString()}
             </div>
           </div>
 
@@ -81,7 +73,7 @@ export default function GameData() {
             <div className="text-3xl font-bold text-white flex items-center gap-2">
               <span className={`${isAnimating ? 'animate-wiggle' : ''}`}>🎯</span>
               <span className="bg-gradient-to-r from-green-300 to-blue-300 bg-clip-text text-transparent">
-                {gameData.moves}
+                {currentMoves}
               </span>
               <span className="text-white/70">/ {totalMoves}</span>
             </div>
