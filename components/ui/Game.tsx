@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import GameData from 'components/ui/GameData';
 import Header from 'components/ui/Header';
-import { useRouter } from 'next/navigation';
 
 const COLORS = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-orange-500'] as const;
 type Color = typeof COLORS[number];
@@ -21,79 +20,21 @@ export default function Game() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<MatchNotification[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const router = useRouter();
-  const telegramId = 12345; // Replace with actual telegram ID from authentication
-
-  // Fetch the latest game state from the backend
-  const fetchGameState = async () => {
-    try {
-      const res = await fetch(`/api/game-state?telegramId=${telegramId}`);
-      if (!res.ok) throw new Error('Failed to fetch game state');
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      setTiles(data.tiles);
-      setScore(data.score);
-      setMoves(data.moves);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Save the current game state to the backend
-  const saveGameState = async () => {
-    try {
-      const res = await fetch('/api/game-state', {
-        method: 'POST',
-        body: JSON.stringify({ telegramId, score, moves, tiles }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Failed to save game state');
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      console.log('Game state saved:', data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Update the game state when score or moves change
-  const updateGameState = async () => {
-    try {
-      const res = await fetch('/api/game-state', {
-        method: 'PATCH',
-        body: JSON.stringify({ telegramId, score, moves, tiles }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error('Failed to update game state');
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      console.log('Game state updated:', data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
   const createBoard = useCallback(() => {
     let newTiles: Color[];
     do {
       newTiles = Array.from({ length: 64 }, () => COLORS[Math.floor(Math.random() * COLORS.length)]);
     } while (findMatches(newTiles).size > 0 || !hasPossibleMoves(newTiles));
-
+    
     setTiles(newTiles);
   }, []);
 
   useEffect(() => {
-    fetchGameState();
-  }, []);
-
-  useEffect(() => {
-    if (score > 0 || moves !== 30 || tiles.length) {
-      updateGameState();
-    }
-  }, [score, moves, tiles]);
+    createBoard();
+    const interval = setInterval(() => setMoves(30), 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [createBoard]);
 
   const handleTileClick = (index: number) => {
     if (isProcessing || moves <= 0) return;
@@ -129,7 +70,7 @@ export default function Game() {
     setTiles(newTiles);
 
     await new Promise(resolve => setTimeout(resolve, 300));
-
+    
     const matches = findMatches(newTiles);
     if (matches.size > 0) {
       await handleMatches(matches);
@@ -138,13 +79,13 @@ export default function Game() {
       [newTiles[index1], newTiles[index2]] = [newTiles[index2], newTiles[index1]];
       setTiles([...newTiles]);
     }
-
+    
     setIsProcessing(false);
   };
 
   const findMatches = (tileArray: Color[]) => {
     const matched = new Set<number>();
-
+    
     // Horizontal matches
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 6; col++) {
@@ -193,9 +134,9 @@ export default function Game() {
         {
           id: Date.now(),
           points: pointsEarned,
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2,
-        },
+          x: rect.left + rect.width/2,
+          y: rect.top + rect.height/2
+        }
       ]);
     }
 
@@ -237,10 +178,11 @@ export default function Game() {
   }, [notifications]);
 
   return (
+    
     <div className="max-w-md mx-auto mt-6 mb-6 pb-60 relative">
-      <Header />
+      <Header score={score} />
       <GameData score={score} currentMoves={moves} totalMoves={30} />
-
+      
       <div className="grid grid-cols-8 gap-1 bg-white p-2 rounded-xl shadow-xl touch-pan-y">
         {tiles.map((color, index) => (
           <button
@@ -253,7 +195,7 @@ export default function Game() {
             }}
             disabled={isProcessing || moves <= 0}
             className={`aspect-square rounded-lg transition-all duration-300 ${color}
-              ${selectedIndex === index ? 'ring-4 ring-white scale-110' : ''} 
+              ${selectedIndex === index ? 'ring-4 ring-white scale-110' : ''}
               ${isProcessing || moves <= 0 ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
             style={{
               WebkitTapHighlightColor: 'transparent',
@@ -270,13 +212,32 @@ export default function Game() {
           style={{
             left: `${x}px`,
             top: `${y}px`,
-            transform: 'translate(-50%, -50%)',
+            transform: 'translate(-50%, -50%)'
           }}
         >
           +{points}
-          <div className="absolute inset-0 w-full h-full"></div>
+          <div className="absolute inset-0 bg-yellow-400/20 blur-sm rounded-full -z-10" />
         </div>
       ))}
+
+      <style jsx global>{`
+        @keyframes float {
+          0% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-50px); }
+        }
+        .animate-float {
+          animation: float 1s ease-out forwards;
+        }
+        html {
+          touch-action: manipulation;
+          overflow: hidden;
+        }
+        body {
+          overscroll-behavior: none;
+          -webkit-overflow-scrolling: touch;
+          -webkit-tap-highlight-color: transparent;
+        }
+      `}</style>
     </div>
   );
 }
