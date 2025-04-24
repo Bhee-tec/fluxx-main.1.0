@@ -51,6 +51,9 @@ export default function Header(): React.JSX.Element {
     }
   }, [])
 
+
+  const balance = (user?.points ?? 0) / 1000;
+
   if (error) {
     return <div className="container mx-auto p-4 text-red-500">{error}</div>
   }
