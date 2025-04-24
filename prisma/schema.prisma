@@ -1,0 +1,63 @@
+generator client {
+provider = "prisma-client-js"
+}
+
+datasource db {
+provider = "mongodb"
+url      = env("DATABASE_URL")
+}
+
+model User {
+id            String       @id @default(auto()) @map("_id") @db.ObjectId
+telegramId    Int          @unique
+username      String?
+firstName    String?
+lastName     String?
+points        Int          @default(0) // Used for score or balance (e.g., score / 1000 for FLX)
+createdAt     DateTime     @default(now())
+updatedAt     DateTime     @updatedAt
+gameStates    GameState[]  // Link to game states
+tasks         Task[]       // Link to tasks
+referrals     Referral[]   // Referrals made by this user
+referredBy    Referral?    @relation("ReferredUser") // User who referred this user
+referralCode  String?      @unique // Unique referral code for the user
+}
+
+model GameState {
+id            String       @id @default(auto()) @map("_id") @db.ObjectId
+userId        String       @db.ObjectId
+user          User         @relation(fields: [userId], references: [id])
+score         Int          @default(0) // Game score
+moves         Int          @default(30) // Current moves left
+tiles         String       // JSON string or comma-separated string of tile colors
+lastPlayed    DateTime     @default(now())
+createdAt     DateTime     @default(now())
+updatedAt     DateTime     @updatedAt
+}
+
+model Task {
+id            String       @id @default(auto()) @map("_id") @db.ObjectId
+userId        String       @db.ObjectId
+user          User         @relation(fields: [userId], references: [id])
+type          String       // 'deposit', 'withdrawal', 'reward'
+amount        String       // e.g., '+50 FLX'
+details       String       // e.g., 'Daily Bonus'
+date          DateTime
+status        String       // e.g., '🎉 Claimed'
+coinProgress  Float        @default(0.0) // Percentage for coin progress bar
+xpProgress    Float        @default(0.0) // Percentage for XP progress bar
+createdAt     DateTime     @default(now())
+updatedAt     DateTime     @updatedAt
+}
+
+model Referral {
+id            String       @id @default(auto()) @map("_id") @db.ObjectId
+referrerId    String       @db.ObjectId
+referrer      User         @relation(fields: [referrerId], references: [id])
+referredUserId String?     @unique @db.ObjectId
+referredUser  User?        @relation("ReferredUser", fields: [referredUserId], references: [id])
+earnings      Float        @default(0.0) // Earnings from this referral in FLX
+dateJoined    DateTime     @default(now())
+createdAt     DateTime     @default(now())
+updatedAt     DateTime     @updatedAt
+}
