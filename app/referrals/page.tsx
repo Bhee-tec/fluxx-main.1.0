@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import prisma from 'lib/prisma'
 
 export default function Referral() {
   const [user, setUser] = useState<{
@@ -40,15 +39,10 @@ export default function Referral() {
       setUser(prev => {
         const newUser = {
           username: data.username || prev?.username || 'gamemaster',
-          points: data.points !== undefined ? data.points : prev?.points || 0,
+          points: data.points ?? prev?.points ?? 0,
           referralCode: data.referralCode || prev?.referralCode || 'REF123',
         };
-        if (
-          prev &&
-          prev.username === newUser.username &&
-          prev.points === newUser.points &&
-          prev.referralCode === newUser.referralCode
-        ) {
+        if (prev && JSON.stringify(prev) === JSON.stringify(newUser)) {
           return prev;
         }
         return newUser;
@@ -69,9 +63,9 @@ export default function Referral() {
       const data = await response.json();
       setReferrals(prev => {
         const newReferrals = {
-          referralCount: data.referrals?.length || prev.referralCount || 0,
-          referralPoints: data.referralPoints || prev.referralPoints || 0,
-          referredUsers: data.referrals || prev.referredUsers || [],
+          referralCount: data.referrals?.length || prev.referralCount,
+          referralPoints: data.referralPoints ?? prev.referralPoints,
+          referredUsers: data.referrals || prev.referredUsers,
         };
         if (
           prev.referralCount === newReferrals.referralCount &&
@@ -102,15 +96,19 @@ export default function Referral() {
   }, [telegramId]);
 
   useEffect(() => {
-    setIsAnimatingPoints(true);
-    const timer = setTimeout(() => setIsAnimatingPoints(false), 500);
-    return () => clearTimeout(timer);
-  }, [user?.points, referrals.referralPoints]);
+    if (user?.points) {
+      setIsAnimatingPoints(true);
+      const timer = setTimeout(() => setIsAnimatingPoints(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [user?.points]);
 
   useEffect(() => {
-    setIsAnimatingReferrals(true);
-    const timer = setTimeout(() => setIsAnimatingReferrals(false), 500);
-    return () => clearTimeout(timer);
+    if (referrals.referralCount > 0) {
+      setIsAnimatingReferrals(true);
+      const timer = setTimeout(() => setIsAnimatingReferrals(false), 500);
+      return () => clearTimeout(timer);
+    }
   }, [referrals.referralCount]);
 
   const handleCopy = () => {
@@ -187,7 +185,7 @@ export default function Referral() {
           <div className="text-center">
             <p className="text-sm text-purple-100 font-semibold">Your Balance</p>
             <p className={`text-2xl font-bold text-yellow-300 ${isAnimatingPoints ? 'animate-pulse' : ''}`}>
-              {(user?.points / 1000 || 0).toFixed(2)} $FLX
+              {(user?.points ?? 0 / 1000).toFixed(2)} $FLX
             </p>
           </div>
 
@@ -218,24 +216,6 @@ export default function Referral() {
           {error}
         </div>
       )}
-
-      <style jsx global>{`
-        @keyframes float {
-          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-        }
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
-        }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-        }
-        .animate-float { animation: float 3s linear infinite; }
-        .animate-bounce { animation: bounce 1s infinite; }
-        .animate-pulse { animation: pulse 0.5s ease-in-out; }
-      `}</style>
     </div>
   );
 }
