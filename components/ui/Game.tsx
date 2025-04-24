@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import GameData from 'components/ui/GameData';
 import Header from 'components/ui/Header';
+import { useRouter } from 'next/navigation';
 
 const COLORS = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-orange-500'] as const;
 type Color = typeof COLORS[number];
@@ -13,12 +14,6 @@ interface MatchNotification {
   y: number;
 }
 
-interface GameState {
-  tiles: Color[];
-  score: number;
-  moves: number;
-}
-
 export default function Game() {
   const [tiles, setTiles] = useState<Color[]>([]);
   const [score, setScore] = useState<number>(0);
@@ -26,99 +21,82 @@ export default function Game() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [notifications, setNotifications] = useState<MatchNotification[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const telegramId = "123456"; // Replace with actual Telegram ID (e.g., from auth context)
+  const router = useRouter();
+  const telegramId = 12345; // Replace with actual telegram ID from authentication
+
+  // Fetch the latest game state from the backend
+  const fetchGameState = async () => {
+    try {
+      const res = await fetch(`/api/game-state?telegramId=${telegramId}`);
+      if (!res.ok) throw new Error('Failed to fetch game state');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      setTiles(data.tiles);
+      setScore(data.score);
+      setMoves(data.moves);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Save the current game state to the backend
+  const saveGameState = async () => {
+    try {
+      const res = await fetch('/api/game-state', {
+        method: 'POST',
+        body: JSON.stringify({ telegramId, score, moves, tiles }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to save game state');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      console.log('Game state saved:', data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Update the game state when score or moves change
+  const updateGameState = async () => {
+    try {
+      const res = await fetch('/api/game-state', {
+        method: 'PATCH',
+        body: JSON.stringify({ telegramId, score, moves, tiles }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error('Failed to update game state');
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      console.log('Game state updated:', data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const createBoard = useCallback(() => {
     let newTiles: Color[];
     do {
       newTiles = Array.from({ length: 64 }, () => COLORS[Math.floor(Math.random() * COLORS.length)]);
     } while (findMatches(newTiles).size > 0 || !hasPossibleMoves(newTiles));
-    return newTiles;
+
+    setTiles(newTiles);
   }, []);
-
-  const fetchGameState = useCallback(async (retryCount = 3) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/game-state?telegramId=${telegramId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to fetch game state: ${response.status}`);
-      }
-      const data: GameState = await response.json();
-      if (!data.tiles || !Array.isArray(data.tiles) || data.tiles.length !== 64) {
-        throw new Error('Invalid game state data');
-      }
-      setTiles(data.tiles);
-      setScore(data.score);
-      setMoves(data.moves);
-    } catch (err) {
-      // Narrow the type of err to Error
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('Fetch game state error:', err);
-      if (retryCount > 0) {
-        console.log(`Retrying fetch... (${retryCount} attempts left)`);
-        setTimeout(() => fetchGameState(retryCount - 1), 2000);
-        return;
-      }
-      setError(`${errorMessage}. Starting new game.`);
-      const newTiles = createBoard();
-      setTiles(newTiles);
-      await saveGameState({ tiles: newTiles, score: 0, moves: 30 }, true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [createBoard, telegramId]);
-
-  const saveGameState = async (state: GameState, isNewGame = false) => {
-    try {
-      const method = isNewGame ? 'POST' : 'PATCH';
-      const response = await fetch('/api/game-state', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegramId, ...state }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${isNewGame ? 'create' : 'save'} game state`);
-      }
-    } catch (err) {
-      // Narrow the type of err to Error
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('Save game state error:', err);
-      setError(errorMessage || `Failed to ${isNewGame ? 'create' : 'save'} game state.`);
-    }
-  };
-
-  const resetGame = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const newTiles = createBoard();
-      await saveGameState({ tiles: newTiles, score: 0, moves: 30 }, true);
-      setTiles(newTiles);
-      setScore(0);
-      setMoves(30);
-    } catch (err) {
-      // Narrow the type of err to Error
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('Reset game error:', err);
-      setError(errorMessage || 'Failed to reset game.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchGameState();
-    const interval = setInterval(() => setMoves(30), 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchGameState]);
+  }, []);
+
+  useEffect(() => {
+    if (score > 0 || moves !== 30 || tiles.length) {
+      updateGameState();
+    }
+  }, [score, moves, tiles]);
 
   const handleTileClick = (index: number) => {
-    if (isProcessing || moves <= 0 || isLoading) return;
+    if (isProcessing || moves <= 0) return;
 
     if (selectedIndex === null) {
       setSelectedIndex(index);
@@ -136,7 +114,7 @@ export default function Game() {
     const row2 = Math.floor(index2 / 8);
     const col2 = index2 % 8;
     return (
-      (Math.abs(row1 - row2) === 1 && col1 === col2) ||
+      (Math.abs(row1 - row2) === 1 && col1 === col2) || 
       (Math.abs(col1 - col2) === 1 && row1 === row2)
     );
   };
@@ -145,6 +123,7 @@ export default function Game() {
     setIsProcessing(true);
     setMoves(m => m - 1);
 
+    // Perform swap
     const newTiles = [...tiles];
     [newTiles[index1], newTiles[index2]] = [newTiles[index2], newTiles[index1]];
     setTiles(newTiles);
@@ -154,11 +133,10 @@ export default function Game() {
     const matches = findMatches(newTiles);
     if (matches.size > 0) {
       await handleMatches(matches);
-      await saveGameState({ tiles: newTiles, score, moves: moves - 1 });
     } else {
+      // Revert swap
       [newTiles[index1], newTiles[index2]] = [newTiles[index2], newTiles[index1]];
       setTiles([...newTiles]);
-      setMoves(m => m + 1);
     }
 
     setIsProcessing(false);
@@ -167,6 +145,7 @@ export default function Game() {
   const findMatches = (tileArray: Color[]) => {
     const matched = new Set<number>();
 
+    // Horizontal matches
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 6; col++) {
         const index = row * 8 + col;
@@ -182,6 +161,7 @@ export default function Game() {
       }
     }
 
+    // Vertical matches
     for (let col = 0; col < 8; col++) {
       for (let row = 0; row < 6; row++) {
         const index = row * 8 + col;
@@ -203,6 +183,7 @@ export default function Game() {
     const pointsEarned = matched.size * 5;
     setScore(s => s + pointsEarned);
 
+    // Show notification
     const firstIndex = Array.from(matched)[0];
     const tileElement = document.getElementById(`tile-${firstIndex}`);
     if (tileElement) {
@@ -218,11 +199,13 @@ export default function Game() {
       ]);
     }
 
+    // Update tiles
     const newTiles = tiles.map((color, index) =>
       matched.has(index) ? COLORS[Math.floor(Math.random() * COLORS.length)] : color
     );
     setTiles(newTiles);
 
+    // Check for new matches
     await new Promise(resolve => setTimeout(resolve, 300));
     const newMatches = findMatches(newTiles);
     if (newMatches.size > 0) {
@@ -257,17 +240,7 @@ export default function Game() {
     <div className="max-w-md mx-auto mt-6 mb-6 pb-60 relative">
       <Header />
       <GameData score={score} currentMoves={moves} totalMoves={30} />
-      {isLoading && <div className="text-blue-500 mb-2">Loading game data...</div>}
-      {error && <div className="text-red-500 mb-2">{error}</div>}
-      <button
-        onClick={resetGame}
-        disabled={isLoading}
-        className={`mb-4 px-4 py-2 text-white rounded ${
-          isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-        }`}
-      >
-        Reset Game
-      </button>
+
       <div className="grid grid-cols-8 gap-1 bg-white p-2 rounded-xl shadow-xl touch-pan-y">
         {tiles.map((color, index) => (
           <button
@@ -278,13 +251,13 @@ export default function Game() {
               e.preventDefault();
               handleTileClick(index);
             }}
-            disabled={isProcessing || moves <= 0 || isLoading}
+            disabled={isProcessing || moves <= 0}
             className={`aspect-square rounded-lg transition-all duration-300 ${color}
-              ${selectedIndex === index ? 'ring-4 ring-white scale-110' : ''}
-              ${isProcessing || moves <= 0 || isLoading ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+              ${selectedIndex === index ? 'ring-4 ring-white scale-110' : ''} 
+              ${isProcessing || moves <= 0 ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
             style={{
               WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation',
+              touchAction: 'manipulation'
             }}
           />
         ))}
@@ -301,28 +274,9 @@ export default function Game() {
           }}
         >
           +{points}
-          <div className="absolute inset-0 bg-yellow-400/20 blur-sm rounded-full -z-10" />
+          <div className="absolute inset-0 w-full h-full"></div>
         </div>
       ))}
-
-      <style jsx global>{`
-        @keyframes float {
-          0% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-50px); }
-        }
-        .animate-float {
-          animation: float 1s ease-out forwards;
-        }
-        html {
-          touch-action: manipulation;
-          overflow: hidden;
-        }
-        body {
-          overscroll-behavior: none;
-          -webkit-overflow-scrolling: touch;
-          -webkit-tap-highlight-color: transparent;
-        }
-      `}</style>
     </div>
   );
 }
