@@ -48,7 +48,6 @@ export default function Game() {
         throw new Error(errorData.error || `Failed to fetch game state: ${response.status}`);
       }
       const data: GameState = await response.json();
-      // Fixed syntax: Added '||' between conditions
       if (!data.tiles || !Array.isArray(data.tiles) || data.tiles.length !== 64) {
         throw new Error('Invalid game state data');
       }
@@ -56,13 +55,15 @@ export default function Game() {
       setScore(data.score);
       setMoves(data.moves);
     } catch (err) {
+      // Narrow the type of err to Error
+      const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Fetch game state error:', err);
       if (retryCount > 0) {
         console.log(`Retrying fetch... (${retryCount} attempts left)`);
         setTimeout(() => fetchGameState(retryCount - 1), 2000);
         return;
       }
-      setError('Error loading game data. Starting new game.');
+      setError(`${errorMessage}. Starting new game.`);
       const newTiles = createBoard();
       setTiles(newTiles);
       await saveGameState({ tiles: newTiles, score: 0, moves: 30 }, true);
@@ -84,8 +85,10 @@ export default function Game() {
         throw new Error(errorData.error || `Failed to ${isNewGame ? 'create' : 'save'} game state`);
       }
     } catch (err) {
+      // Narrow the type of err to Error
+      const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Save game state error:', err);
-      setError(err.message || `Failed to ${isNewGame ? 'create' : 'save'} game state.`);
+      setError(errorMessage || `Failed to ${isNewGame ? 'create' : 'save'} game state.`);
     }
   };
 
@@ -99,8 +102,10 @@ export default function Game() {
       setScore(0);
       setMoves(30);
     } catch (err) {
+      // Narrow the type of err to Error
+      const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Reset game error:', err);
-      setError(err.message || 'Failed to reset game.');
+      setError(errorMessage || 'Failed to reset game.');
     } finally {
       setIsLoading(false);
     }
