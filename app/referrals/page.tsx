@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import prisma from 'lib/prisma'
 
 export default function Referral() {
   const [user, setUser] = useState<{
