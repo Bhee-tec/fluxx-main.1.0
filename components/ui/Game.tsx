@@ -255,7 +255,7 @@ export default function Game() {
 
   return (
     <div className="max-w-md mx-auto mt-6 mb-6 pb-60 relative">
-      <Header score={score} />
+      <Header />
       <GameData score={score} currentMoves={moves} totalMoves={30} />
       {isLoading && <div className="text-blue-500 mb-2">Loading game data...</div>}
       {error && <div className="text-red-500 mb-2">{error}</div>}
